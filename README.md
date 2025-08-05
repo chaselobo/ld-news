@@ -114,9 +114,7 @@ self.rss_feeds = [
 
 #### PhantomBuster Setup
 1. Create and configure these phantoms:
-   - **Twitter Hashtag Search Export**: For hashtags like #LeaveDelaware, #RelocateFromDelaware
    - **Twitter Search Export**: For keywords like "Leave Delaware", "corporate relocation"
-   - **Twitter Tweet Extractor**: For specific accounts like @LeaveDelaware
    - **Extract Leads from LinkedIn Posts**: For LinkedIn posts with relevant keywords
 
 2. Schedule phantoms to run daily
