@@ -2,7 +2,7 @@ name: Daily News Aggregator
 
 on:
   schedule:
-    - cron: '45 9 * * *'  # 9:45 AM UTC daily
+    - cron: '45 14 * * *'  # 9:45 AM UTC daily
   workflow_dispatch:  # Allows manual triggering
 
 jobs:
