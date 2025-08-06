@@ -25,7 +25,9 @@ jobs:
         
     - name: Create credentials file
       run: |
-        echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+        cat << 'EOF' > credentials.json
+        ${{ secrets.GOOGLE_CREDENTIALS }}
+        EOF
         
     - name: Create .env file
       run: |
@@ -36,6 +38,11 @@ jobs:
         echo "PB_TWITTER_SEARCH_ID=${{ secrets.PB_TWITTER_SEARCH_ID }}" >> .env
         echo "PB_LINKEDIN_POSTS_ID=${{ secrets.PB_LINKEDIN_POSTS_ID }}" >> .env
         echo "GMAIL_RECIPIENTS=${{ secrets.GMAIL_RECIPIENTS }}" >> .env
+        
+    - name: Verify credentials file
+      run: |
+        echo "Credentials file size: $(wc -c < credentials.json)"
+        echo "First few characters: $(head -c 50 credentials.json)"
         
     - name: Run news aggregator
       run: python main.py
