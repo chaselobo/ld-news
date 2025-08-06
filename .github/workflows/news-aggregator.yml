@@ -39,3 +39,48 @@ jobs:
         
     - name: Run news aggregator
       run: python main.py
+
+
+
+
+name: Daily News Aggregator
+
+on:
+  schedule:
+    - cron: '45 14 * * *'  # 9:45 AM UTC daily
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  run-aggregator:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Create credentials file
+      run: |
+        echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+        
+    - name: Create .env file
+      run: |
+        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+        echo "SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}" >> .env
+        echo "SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}" >> .env
+        echo "PHANTOMBUSTER_API_KEY=${{ secrets.PHANTOMBUSTER_API_KEY }}" >> .env
+        echo "PB_TWITTER_SEARCH_ID=${{ secrets.PB_TWITTER_SEARCH_ID }}" >> .env
+        echo "PB_LINKEDIN_POSTS_ID=${{ secrets.PB_LINKEDIN_POSTS_ID }}" >> .env
+        echo "GMAIL_RECIPIENTS=${{ secrets.GMAIL_RECIPIENTS }}" >> .env
+        
+    - name: Run news aggregator
+      run: python main.py
