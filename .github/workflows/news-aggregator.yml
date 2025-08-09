@@ -8,6 +8,8 @@ on:
 jobs:
   run-aggregator:
     runs-on: ubuntu-latest
+    # If your secrets are stored in a GitHub Environment, uncomment and set the correct name:
+    # environment: Production
     
     steps:
     - name: Checkout code
@@ -23,9 +25,21 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
+    - name: Debug secrets availability (length only)
+      run: |
+        echo "GOOGLE_CREDENTIALS length: ${#GOOGLE_CREDENTIALS}"
+        echo "OPENAI_API_KEY length: ${#OPENAI_API_KEY}"
+        echo "SLACK_BOT_TOKEN length: ${#SLACK_BOT_TOKEN}"
+      env:
+        GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        
     - name: Create credentials file
       run: |
-        echo "${{ secrets.GOOGLE_CREDENTIALS_BASE64 }}" | base64 -d > credentials.json
+        cat << 'EOF' > credentials.json
+        ${{ secrets.GOOGLE_CREDENTIALS }}
+        EOF
         
     - name: Verify credentials file (debug)
       run: |
