@@ -8,9 +8,7 @@ on:
 jobs:
   run-aggregator:
     runs-on: ubuntu-latest
-    # If your secrets are stored in a GitHub Environment, uncomment and set the correct name:
-    # environment: Production
-    
+    environment: .env
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -62,6 +60,7 @@ jobs:
         echo "PHANTOMBUSTER_API_KEY=${{ secrets.PHANTOMBUSTER_API_KEY }}" >> .env
         echo "PB_TWITTER_SEARCH_ID=${{ secrets.PB_TWITTER_SEARCH_ID }}" >> .env
         echo "PB_LINKEDIN_POSTS_ID=${{ secrets.PB_LINKEDIN_POSTS_ID }}" >> .env
+        echo "GMAIL_SENDER_EMAIL=${{ secrets.GMAIL_SENDER_EMAIL }}" >> .env
         echo "GMAIL_RECIPIENTS=${{ secrets.GMAIL_RECIPIENTS }}" >> .env
         
     - name: Verify credentials file
