@@ -60,12 +60,4 @@ jobs:
         echo "PB_LINKEDIN_POSTS_ID=${{ secrets.PB_LINKEDIN_POSTS_ID }}" >> .env
         echo "GMAIL_SENDER_EMAIL=${{ secrets.GMAIL_SENDER_EMAIL }}" >> .env
         echo "GMAIL_RECIPIENTS=${{ secrets.GMAIL_RECIPIENTS }}" >> .env
-        echo "GMAIL_TOKEN=${{ secrets.GMAIL_TOKEN }}" >> .env
-        
-    - name: Verify credentials file
-      run: |
-        echo "Credentials file size: $(wc -c < credentials.json)"
-        echo "First few characters: $(head -c 50 credentials.json)"
-        
-    - name: Run news aggregator
-      run: python main.py
+        echo "GMAIL_TOKEN_BASE64=${{ secrets.GMAIL_TOKEN_BASE64 }}" >> .env

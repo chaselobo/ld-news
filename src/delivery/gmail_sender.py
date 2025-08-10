@@ -30,6 +30,14 @@ class GmailSender:
         
         # Try to load from environment variable first (for CI)
         gmail_token = os.getenv('GMAIL_TOKEN')
+        gmail_token_b64 = os.getenv('GMAIL_TOKEN_BASE64')
+        if gmail_token_b64 and not gmail_token:
+            try:
+                gmail_token = base64.b64decode(gmail_token_b64).decode('utf-8')
+                self.logger.info("Decoded credentials from GMAIL_TOKEN_BASE64")
+            except Exception as e:
+                self.logger.error(f"Failed to base64-decode GMAIL_TOKEN_BASE64: {e}")
+        
         if gmail_token:
             try:
                 token_data = json.loads(gmail_token)
@@ -51,7 +59,7 @@ class GmailSender:
             else:
                 # Only run interactive flow if not in CI environment
                 if os.getenv('CI') or os.getenv('GITHUB_ACTIONS'):
-                    raise Exception("No valid Gmail credentials available in CI environment. Please set GMAIL_TOKEN secret.")
+                    raise Exception("No valid Gmail credentials available in CI environment. Please set GMAIL_TOKEN or GMAIL_TOKEN_BASE64 secret.")
                 
                 self.logger.info("Starting interactive OAuth flow")
                 flow = InstalledAppFlow.from_client_secrets_file(
@@ -63,7 +71,7 @@ class GmailSender:
                 with open('token.json', 'w') as token:
                     token.write(creds.to_json())
                     self.logger.info("Saved credentials to token.json")
-                
+        
         return build('gmail', 'v1', credentials=creds)
     
     def send_digest(self, digest: Dict) -> bool:
