@@ -75,10 +75,29 @@ class ContentProcessor:
         
         for entry in entries:
             text_content = f"{entry.get('title', '')} {entry.get('description', '')}".lower()
+            # Exclude X posts that mention @LeaveDelaware
+            source_str = (entry.get('source') or '').lower()
+            tag_str = (entry.get('tag') or '').lower()
+            is_x_post = ('twitter' in source_str) or (tag_str == 'x post') or ('x post' in source_str)
+            if is_x_post and '@leavedelaware' in text_content:
+                self.logger.info(f"Skipping X post mentioning @LeaveDelaware: {entry.get('title', '')[:80]}")
+                continue
             
-            # Check if any keyword is present
-            if any(keyword.lower() in text_content for keyword in self.keywords):
-                filtered.append(entry)
+            # Initial coarse keyword check
+            if not any(keyword.lower() in text_content for keyword in self.keywords):
+                continue
+
+            # NEW: Validate that keywords appear in the main article content (RSS only)
+            validate_main = (os.getenv('ARTICLE_VALIDATE_MAIN_CONTENT', '1') != '0')
+            if validate_main and ('rss' in source_str):
+                is_relevant, canonical_url = self._validate_article_main_content(entry.get('url'))
+                if not is_relevant:
+                    self.logger.info("Skipping RSS entry: keywords not found in main article body (likely sidebar/suggested match).")
+                    continue
+                if canonical_url:
+                    entry['url'] = canonical_url  # prefer canonical article URL
+
+            filtered.append(entry)
                 
         self.logger.info(f"Filtered {len(filtered)} relevant entries from {len(entries)} total")
         return filtered
@@ -93,17 +112,23 @@ class ContentProcessor:
         # Generate title if missing or improve existing one
         title = self._generate_title(cleaned_entry)
         
-        # Generate summary
-        summary = self._generate_summary(cleaned_entry)
-        
         # Determine content tag
         tag = self._determine_tag(cleaned_entry)
+        
+        # Generate summary (skip for X posts so we only show headline in notifications)
+        if tag == 'X Post':
+            summary = ''  # no summary for X posts
+        else:
+            summary = self._generate_summary(cleaned_entry)
+        
+        # Normalize any Google redirect links
+        normalized_url = self._normalize_generic_url(entry.get('url', ''))
         
         processed_entry = {
             'tag': tag,
             'title': self._clean_html_tags(title),  # Clean title again just in case
             'summary': self._clean_html_tags(summary),  # Clean summary too
-            'url': entry.get('url', ''),
+            'url': normalized_url,
             'source': entry.get('source', ''),
             'published_date': entry.get('published_date', ''),
             'author': entry.get('author', ''),
@@ -111,6 +136,108 @@ class ContentProcessor:
         }
         
         return processed_entry
+
+    def _normalize_generic_url(self, url: str) -> str:
+        """Unwrap common Google redirect links and ensure http/https scheme"""
+        if not url:
+            return url
+        from urllib.parse import urlparse, parse_qs, unquote
+        try:
+            u = str(url).strip()
+            p = urlparse(u)
+            if p.netloc.endswith('google.com') and p.path.startswith('/url'):
+                qs = parse_qs(p.query)
+                target = qs.get('q') or qs.get('url')
+                if target and target[0]:
+                    u = unquote(target[0])
+                    p = urlparse(u)
+            if not p.scheme:
+                u = f"https://{u.lstrip('/')}"
+            return u
+        except Exception:
+            return url
+
+    # NEW: Main-article validation to avoid suggested/related-only matches
+    def _validate_article_main_content(self, url: str) -> (bool, str):
+        """
+        Fetch the page, extract the main article text, and confirm at least one keyword
+        appears in the main content. Returns (is_relevant, canonical_url_if_found).
+        """
+        if not url:
+            return False, None
+
+        try:
+            import requests
+            from bs4 import BeautifulSoup
+            from urllib.parse import urljoin
+
+            real_url = self._normalize_generic_url(url)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                              "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            }
+            timeout = int(os.getenv('ARTICLE_FETCH_TIMEOUT', '8'))
+            resp = requests.get(real_url, headers=headers, timeout=timeout, allow_redirects=True)
+            if not (200 <= resp.status_code < 300):
+                self.logger.warning(f"Fetch failed ({resp.status_code}) for URL: {real_url}")
+                return True, None  # do not over-filter if fetch fails
+
+            soup = BeautifulSoup(resp.text, "html.parser")
+
+            # Resolve canonical URL if present
+            canonical_url = None
+            link_canon = soup.find("link", rel=lambda v: v and "canonical" in v)
+            if link_canon and link_canon.get("href"):
+                canonical_url = urljoin(resp.url, link_canon["href"])
+            if not canonical_url:
+                og_url = soup.find("meta", attrs={"property": "og:url"})
+                if og_url and og_url.get("content"):
+                    canonical_url = urljoin(resp.url, og_url["content"])
+
+            # Strip non-content blocks
+            for tag in soup(["script", "style", "noscript", "iframe", "header", "footer", "nav", "form"]):
+                tag.decompose()
+
+            # Remove common sidebar/related/recommended/latest sections
+            def is_noise(el):
+                for attr in ("class", "id"):
+                    val = " ".join(el.get(attr, []) if isinstance(el.get(attr, []), list) else [el.get(attr, "")]).lower()
+                    if re.search(r"(related|recommend|latest|sidebar|trending|most-read|more|footer|nav|menu)", val):
+                        return True
+                return False
+
+            for el in soup.find_all(is_noise):
+                el.decompose()
+
+            # Prefer <article> or <main>, else pick largest multi-paragraph block
+            candidates = []
+            for sel in ["article", "main", "section"]:
+                for el in soup.select(sel):
+                    text = el.get_text(separator=" ", strip=True)
+                    if text and len(text.split()) > 80:
+                        candidates.append((len(text), text))
+            if not candidates:
+                for div in soup.find_all("div"):
+                    ps = div.find_all("p")
+                    if len(ps) >= 2:
+                        text = " ".join(p.get_text(' ', strip=True) for p in ps)
+                        if text and len(text.split()) > 80:
+                            candidates.append((len(text), text))
+            if not candidates and soup.body:
+                body_text = soup.body.get_text(" ", strip=True)
+                candidates.append((len(body_text), body_text))
+
+            candidates.sort(reverse=True, key=lambda x: x[0])
+            main_text = candidates[0][1] if candidates else ""
+
+            main_text_lower = main_text.lower()
+            has_keyword = any(k.lower() in main_text_lower for k in self.keywords)
+
+            return has_keyword, canonical_url
+
+        except Exception as e:
+            self.logger.warning(f"Main-content validation failed for URL: {url} ({e})")
+            return True, None
 
     def _generate_title(self, entry: Dict) -> str:
         """Generate or improve title using OpenAI"""

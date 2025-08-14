@@ -42,7 +42,12 @@ class DigestFormatter:
         
         for i, entry in enumerate(entries, 1):
             formatted_entry = f"{i}. *[{entry['tag']}]* {entry['title']}\n"
-            formatted_entry += f"   {entry['summary']}\n"
+            if entry.get('tag') == 'X Post':
+                # No summary for X posts; show date only if present
+                if entry.get('published_date'):
+                    formatted_entry += f"   🕒 Posted: {entry['published_date']}\n"
+            else:
+                formatted_entry += f"   {entry['summary']}\n"
             formatted_entry += f"   🔗 {entry['url']}\n"
             
             formatted_entries.append(formatted_entry)
@@ -64,6 +69,7 @@ class DigestFormatter:
                 .url {{ margin-top: 10px; }}
                 .url a {{ color: #007cba; text-decoration: none; }}
                 .url a:hover {{ text-decoration: underline; }}
+                .meta {{ color: #666; font-size: 12px; margin: 6px 0; }}
             </style>
         </head>
         <body>
@@ -75,14 +81,28 @@ class DigestFormatter:
         """
         
         for i, entry in enumerate(entries, 1):
-            html += f"""
-            <div class="entry">
-                <span class="tag">{entry['tag']}</span>
-                <div class="title">{i}. {entry['title']}</div>
-                <div class="summary">{entry['summary']}</div>
-                <div class="url"><a href="{entry['url']}" target="_blank">Read More →</a></div>
-            </div>
-            """
+            # Build optional blocks based on tag
+            if entry.get('tag') == 'X Post':
+                meta_html = ""
+                if entry.get('published_date'):
+                    meta_html = f'<div class="meta">🕒 Posted: {entry["published_date"]}</div>'
+                html += f"""
+                <div class="entry">
+                    <span class="tag">{entry['tag']}</span>
+                    <div class="title">{i}. {entry['title']}</div>
+                    {meta_html}
+                    <div class="url"><a href="{entry['url']}" target="_blank">Read More →</a></div>
+                </div>
+                """
+            else:
+                html += f"""
+                <div class="entry">
+                    <span class="tag">{entry['tag']}</span>
+                    <div class="title">{i}. {entry['title']}</div>
+                    <div class="summary">{entry['summary']}</div>
+                    <div class="url"><a href="{entry['url']}" target="_blank">Read More →</a></div>
+                </div>
+                """
             
         html += """
         </body>

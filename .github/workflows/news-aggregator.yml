@@ -61,3 +61,4 @@ jobs:
         echo "GMAIL_SENDER_EMAIL=${{ secrets.GMAIL_SENDER_EMAIL }}" >> .env
         echo "GMAIL_RECIPIENTS=${{ secrets.GMAIL_RECIPIENTS }}" >> .env
         echo "GMAIL_TOKEN_BASE64=${{ secrets.GMAIL_TOKEN_BASE64 }}" >> .env
+        echo "PHANTOM_WINDOW_DAYS=3" >> .env
