@@ -2,7 +2,7 @@ name: Daily News Aggregator
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # TEMP: run every 5 minutes for testing (UTC)
+    - cron: '45 14 * * *'  # 9:45 AM EST (14:45 UTC). During EDT this runs at 10:45 AM local.
   workflow_dispatch:  # Allows manual triggering
   push:
     branches:
