@@ -2,8 +2,13 @@ name: Daily News Aggregator
 
 on:
   schedule:
-    - cron: '45 14 * * *'  # 9:45 AM UTC daily
+    - cron: '*/5 * * * *'  # TEMP: run every 5 minutes for testing (UTC)
   workflow_dispatch:  # Allows manual triggering
+  push:
+    branches:
+      - main  # change if your default branch is different
+    paths:
+      - '.github/workflows/news-aggregator.yml'  # push a change here to trigger once
 
 jobs:
   run-aggregator:
