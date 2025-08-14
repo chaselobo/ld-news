@@ -67,3 +67,11 @@ jobs:
         echo "GMAIL_RECIPIENTS=${{ secrets.GMAIL_RECIPIENTS }}" >> .env
         echo "GMAIL_TOKEN_BASE64=${{ secrets.GMAIL_TOKEN_BASE64 }}" >> .env
         echo "PHANTOM_WINDOW_DAYS=3" >> .env
+    - name: Run aggregator
+      run: python main.py
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ldnews-logs-${{ github.run_id }}
+        path: logs/
